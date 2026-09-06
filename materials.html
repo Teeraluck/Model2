@@ -8,10 +8,33 @@
             margin: 0;
             overflow: hidden;
         }
+
+        /* Simple controls for changing the light. */
+        #light-gui {
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 1;
+            padding: 10px;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            font: 14px Arial, sans-serif;
+        }
+
+        #light-gui label {
+            display: block;
+            margin: 6px 0;
+        }
     </style>
 </head>
 
 <body>
+    <!-- Light controls: power and color. -->
+    <div id="light-gui">
+        <label>Power <input id="light-power" type="range" min="0" max="3" step="0.1" value="0.5"></label>
+        <label>Color <input id="light-color" type="color" value="#ffffff"></label>
+    </div>
+
     <!-- core three.js -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
@@ -48,6 +71,22 @@
         directionalLight.position.set(10, 10, 10);
         directionalLight.castShadow = true;
         scene.add(directionalLight);
+
+        // Update the light intensity from the Power slider.
+        document.getElementById('light-power').addEventListener('input', (event) => {
+            directionalLight.intensity = Number(event.target.value);
+        });
+
+        // Update the light color from the Color picker.
+        document.getElementById('light-color').addEventListener('input', (event) => {
+            directionalLight.color.set(event.target.value);
+        });
+
+        // Move the light on the X/Z axes with the mouse position.
+        renderer.domElement.addEventListener('mousemove', (event) => {
+            directionalLight.position.x = (event.clientX / window.innerWidth - 0.5) * 20;
+            directionalLight.position.z = (event.clientY / window.innerHeight - 0.5) * 20;
+        });
 
 
         

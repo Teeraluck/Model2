@@ -36,18 +36,31 @@
             0.1,
             1000
         );
+
+        //pointlight
+        const pointLight2 = new THREE.PointLight(0xffffff,2,100);
+        pointLight2.position.set(0,3,3);
+        pointLight2.castShadow = true;  
+        scene.add(pointLight2);
+
         camera.position.set(0, 2, 5);
         camera.lookAt(0, 0, 0);
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
+        // Move the point light on the X and Z axes based on the mouse position.
+        renderer.domElement.addEventListener('mousemove', (event) => {
+            pointLight2.position.x = (event.clientX / window.innerWidth - 0.5) * 10;
+            pointLight2.position.z = (event.clientY / window.innerHeight - 0.5) * 10;
+        });
+
         const abmientLight = new THREE.AmbientLight(0x404040, 1); // soft white light
-        scene.add(abmientLight);
+        //scene.add(abmientLight);
 
         
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
         directionalLight.position.set(10, 10, 10);
         directionalLight.castShadow = true;
-        scene.add(directionalLight);
+        //scene.add(directionalLight);
 
 
         
@@ -95,7 +108,7 @@ const uvs = [
         const mesh = new THREE.Mesh(geom, mat);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
-        scene.add(mesh);
+        //scene.add(mesh);
 
 
         //ใส่พื้น
@@ -121,7 +134,7 @@ const uvs = [
          const basicMesh = new THREE.Mesh(spherGeometry, basicMaterial);
          basicMesh.castShadow = true;
          basicMesh.position.set(2,1,-1);
-         scene.add(basicMesh);
+         //scene.add(basicMesh);
             
         //lambert material
          const  lambertspherGeometry = new THREE.SphereGeometry(0.5,32,32);
@@ -132,7 +145,7 @@ const uvs = [
          const lambertMesh = new THREE.Mesh(lambertspherGeometry, lambertMaterial);
          lambertMesh.castShadow = true;
          lambertMesh.position.set(0,1,-1);
-         scene.add(lambertMesh);
+         //scene.add(lambertMesh);
 
          // Phong Material
          const phongSphereGeometry = new THREE.SphereBufferGeometry(0.5,32,32);
@@ -145,7 +158,7 @@ const uvs = [
          const phongMesh = new THREE.Mesh(phongSphereGeometry, phongMaterial);
          phongMesh.castShadow = true;
          phongMesh.position.set(-2,1,-1);
-         scene.add(phongMesh);
+         //scene.add(phongMesh);
 
           // Standard Matreial
         const standardSphereGeometry = new THREE.SphereGeometry(0.5,32,32);
@@ -159,11 +172,11 @@ const uvs = [
         const standardMesh = new THREE.Mesh(standardSphereGeometry,standardMaterial);
         standardMesh.castShadow = true;
         standardMesh.position.set(0,1,2);
-        scene.add(standardMesh);
+        //scene.add(standardMesh);
 
         //load glb และใช้ pbr material
         const loader = new THREE.GLTFLoader();
-        loader.load('https://teeraluck.github.io/Model/AMOUNG%20US.glb', (gltf) => {
+        loader.load('https://teeraluck.github.io/Model2/AMOUNG%20US2.glb', (gltf) => {
             const model = gltf.scene;
             model.traverse((child) => {
                 if (child.isMesh) {
@@ -171,7 +184,7 @@ const uvs = [
                     child.receiveShadow = true;
                 }
             });
-            model.position.set(0, 0, 6);
+            model.position.set(0, 0, 0);
             scene.add(model);
         });
 
