@@ -14,25 +14,55 @@
             position: fixed;
             top: 12px;
             left: 12px;
-            z-index: 1;
+            z-index: 2;
             padding: 10px;
             color: white;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(12, 18, 28, 0.86);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
             font: 14px Arial, sans-serif;
         }
 
         #light-gui label {
-            display: block;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
             margin: 6px 0;
         }
+
+        #light-gui input[type="range"] {
+            width: 130px;
+        }
+
+        #light-gui output {
+            display: inline-block;
+            width: 34px;
+            text-align: right;
+            color: #ffffff;
+            font-variant-numeric: tabular-nums;
+            box-sizing: border-box;
+        }
+
+        #light-gui button {
+            width: 100%;
+            margin-top: 8px;
+            padding: 5px 8px;
+            cursor: pointer;
+        }
+
     </style>
 </head>
 
 <body>
-    <!-- Light controls: power and color. -->
+    <!-- Light controls: drag the marker in the scene or edit its coordinates. -->
     <div id="light-gui">
         <label>Power <input id="light-power" type="range" min="0" max="3" step="0.1" value="0.5"></label>
         <label>Color <input id="light-color" type="color" value="#ffffff"></label>
+        <label>X <input id="light-x" type="range" min="-10" max="10" step="0.1" value="10"><output id="light-x-value">10.0</output></label>
+        <label>Y <input id="light-y" type="range" min="0.2" max="10" step="0.1" value="10"><output id="light-y-value">10.0</output></label>
+        <label>Z <input id="light-z" type="range" min="-10" max="10" step="0.1" value="10"><output id="light-z-value">10.0</output></label>
+        <button id="light-reset" type="button">Reset position</button>
     </div>
 
     <!-- core three.js -->
@@ -67,25 +97,107 @@
         scene.add(abmientLight);
 
         
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-        directionalLight.position.set(10, 10, 10);
-        directionalLight.castShadow = true;
-        scene.add(directionalLight);
+        const pointLight = new THREE.PointLight(0xffffff, 0.5, 0, 2);
+        pointLight.position.set(10, 10, 10);
+        pointLight.castShadow = true;
+        scene.add(pointLight);
+
+        const lightMarker = new THREE.Mesh(
+            new THREE.SphereGeometry(0.18, 16, 16),
+            new THREE.MeshBasicMaterial({ color: 0xffffaa })
+        );
+        lightMarker.position.copy(pointLight.position);
+        scene.add(lightMarker);
+
+        const lightInputs = {
+            x: document.getElementById('light-x'),
+            y: document.getElementById('light-y'),
+            z: document.getElementById('light-z')
+        };
+        const lightOutputs = {
+            x: document.getElementById('light-x-value'),
+            y: document.getElementById('light-y-value'),
+            z: document.getElementById('light-z-value')
+        };
+        function updateLightPosition(x, y, z) {
+            pointLight.position.set(x, y, z);
+            lightMarker.position.copy(pointLight.position);
+            lightInputs.x.value = pointLight.position.x.toFixed(1);
+            lightInputs.y.value = pointLight.position.y.toFixed(1);
+            lightInputs.z.value = pointLight.position.z.toFixed(1);
+            lightOutputs.x.value = pointLight.position.x.toFixed(1);
+            lightOutputs.y.value = pointLight.position.y.toFixed(1);
+            lightOutputs.z.value = pointLight.position.z.toFixed(1);
+        }
+
+        updateLightPosition(0, 4, 0);
+
+        Object.entries(lightInputs).forEach(([axis, input]) => {
+            input.addEventListener('input', () => {
+                const position = pointLight.position.clone();
+                position[axis] = Number(input.value);
+                if (Number.isFinite(position[axis])) {
+                    updateLightPosition(position.x, position.y, position.z);
+                }
+            });
+        });
+
+        document.getElementById('light-reset').addEventListener('click', () => {
+            updateLightPosition(0, 4, 0);
+        });
 
         // Update the light intensity from the Power slider.
         document.getElementById('light-power').addEventListener('input', (event) => {
-            directionalLight.intensity = Number(event.target.value);
+            pointLight.intensity = Number(event.target.value);
         });
 
         // Update the light color from the Color picker.
         document.getElementById('light-color').addEventListener('input', (event) => {
-            directionalLight.color.set(event.target.value);
+            pointLight.color.set(event.target.value);
         });
 
-        // Move the light on the X/Z axes with the mouse position.
-        renderer.domElement.addEventListener('mousemove', (event) => {
-            directionalLight.position.x = (event.clientX / window.innerWidth - 0.5) * 20;
-            directionalLight.position.z = (event.clientY / window.innerHeight - 0.5) * 20;
+        // Drag the marker across the ground plane to move the light on X/Z.
+        const raycaster = new THREE.Raycaster();
+        const pointer = new THREE.Vector2();
+        const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        const dragPoint = new THREE.Vector3();
+        let isDraggingLight = false;
+
+        function setPointer(event) {
+            const bounds = renderer.domElement.getBoundingClientRect();
+            pointer.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
+            pointer.y = -((event.clientY - bounds.top) / bounds.height) * 2 + 1;
+        }
+
+        renderer.domElement.addEventListener('pointerdown', (event) => {
+            setPointer(event);
+            raycaster.setFromCamera(pointer, camera);
+            if (raycaster.intersectObject(lightMarker).length) {
+                isDraggingLight = true;
+                // Keep the drag plane at the light's current height to prevent jumping.
+                dragPlane.setFromNormalAndCoplanarPoint(
+                    new THREE.Vector3(0, 1, 0),
+                    pointLight.position
+                );
+                controls.enabled = false;
+                renderer.domElement.setPointerCapture(event.pointerId);
+            }
+        });
+
+        renderer.domElement.addEventListener('pointermove', (event) => {
+            if (!isDraggingLight) return;
+            setPointer(event);
+            raycaster.setFromCamera(pointer, camera);
+            if (raycaster.ray.intersectPlane(dragPlane, dragPoint)) {
+                updateLightPosition(dragPoint.x, pointLight.position.y, dragPoint.z);
+            }
+        });
+
+        renderer.domElement.addEventListener('pointerup', (event) => {
+            if (!isDraggingLight) return;
+            isDraggingLight = false;
+            controls.enabled = true;
+            renderer.domElement.releasePointerCapture(event.pointerId);
         });
 
 
@@ -144,7 +256,7 @@ const uvs = [
             map: texFloor,
             doubleSided: true
         });
-        const planeGeometry = new THREE.PlaneGeometry(10, 10);
+        const planeGeometry = new THREE.PlaneGeometry(20, 20);
         const plane = new THREE.Mesh(planeGeometry, matFloor);
         plane.rotation.x = -Math.PI / 2; 
         plane.receiveShadow = true;
@@ -202,7 +314,7 @@ const uvs = [
 
         //load glb และใช้ pbr material
         const loader = new THREE.GLTFLoader();
-        loader.load('https://teeraluck.github.io/Model/AMOUNG%20US.glb', (gltf) => {
+        loader.load('https://teeraluck.github.io/Model2/AMOUNG%20US3.glb', (gltf) => {
             const model = gltf.scene;
             model.traverse((child) => {
                 if (child.isMesh) {
@@ -211,6 +323,19 @@ const uvs = [
                 }
             });
             model.position.set(0, 0, 0);
+            scene.add(model);
+        });
+        //load glb และใช้ pbr material
+        const loader2 = new THREE.GLTFLoader();
+        loader2.load('https://teeraluck.github.io/Model2/C.glb', (gltf) => {
+            const model = gltf.scene;
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+            model.position.set(-2, 0, 0);
             scene.add(model);
         });
 
